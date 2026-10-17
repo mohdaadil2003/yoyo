@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /employer
+Disallow: /api/
+
+Sitemap: https://nextstep.in/sitemap.xml

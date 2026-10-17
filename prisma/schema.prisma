@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+// ─── Auth Models (NextAuth) ───────────────────────────────────
+
+enum UserRole {
+  JOB_SEEKER
+  EMPLOYER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(JOB_SEEKER)
+  phone         String?
+  bio           String?
+  resumeUrl     String?
+  resumeKey     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
+
+  // App relations
+  company      Company?
+  applications Application[]
+  savedJobs    SavedJob[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Company (Employer Profile) ───────────────────────────────
+
+model Company {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  website     String?
+  logoUrl     String?
+  logoKey     String?
+  location    String?
+  industry    String?
+  size        String?
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobs Job[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("companies")
+}
+
+// ─── Job Listing ──────────────────────────────────────────────
+
+model Job {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String?
+  type        String?
+  salary      String?
+  location    String?
+  deadline    DateTime?
+  experience  String?
+  requirements String[]
+  applyLink   String?
+  isUrgent    Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  color       String?
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  applications Application[]
+  savedBy      SavedJob[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([type])
+  @@index([location])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([createdAt(sort: Desc)])
+  @@map("jobs")
+}
+
+// ─── Application (Job Seeker applies to Job) ──────────────────
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
+}
+
+model Application {
+  id         String            @id @default(cuid())
+  status     ApplicationStatus @default(PENDING)
+  coverLetter String?
+  resumeUrl  String?
+  resumeKey  String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, jobId])
+  @@index([userId])
+  @@index([jobId])
+  @@map("applications")
+}
+
+// ─── Saved Jobs ───────────────────────────────────────────────
+
+model SavedJob {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  savedAt DateTime @default(now())
+
+  @@unique([userId, jobId])
+  @@index([userId])
+  @@index([jobId])
+  @@map("saved_jobs")
+}
+
+// ─── Newsletter & Contact ─────────────────────────────────────
+
+model NewsletterSubscriber {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  isActive     Boolean  @default(true)
+  subscribedAt DateTime @default(now())
+
+  @@map("newsletter_subscribers")
+}
+
+model ContactSubmission {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String?
+  message   String
+  jobId     String?
+  createdAt DateTime @default(now())
+
+  @@map("contact_submissions")
+}
